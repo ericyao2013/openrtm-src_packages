@@ -1,0 +1,1161 @@
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/ExtTrigExecutionContext.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/ExtTrigExecutionContext.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/ExtTrigExecutionContext.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/ExtTrigExecutionContext.py	2009-08-18 16:17:52.000000000 +0900
+@@ -72,7 +72,7 @@
+   # @endif
+   def tick(self):
+     self._rtcout.RTC_TRACE("tick()")
+-    if not self._worker._cond.acquire(0):
++    if not self._worker._cond.acquire():
+       return
+     self._worker._called = True
+     self._worker._cond.notify()
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPort.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPort.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPort.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPort.py	2009-08-18 16:17:53.000000000 +0900
+@@ -17,7 +17,6 @@
+ from omniORB import *
+ from omniORB import any
+ import sys
+-import traceback
+ 
+ import OpenRTM_aist
+ 
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPortCorbaCdrConsumer.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPortCorbaCdrConsumer.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPortCorbaCdrConsumer.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPortCorbaCdrConsumer.py	2009-08-18 16:17:52.000000000 +0900
+@@ -16,7 +16,6 @@
+ #     All rights reserved.
+ #
+ 
+-import traceback
+ import sys
+ from omniORB import any
+ from omniORB import CORBA
+@@ -254,7 +253,7 @@
+         try:
+             ior = any.from_any(properties[index].value, keep_structs=True)
+         except:
+-            traceback.print_exception(*sys.exc_info())
++            self._rtcout.RTC_ERROR(sys.exc_info()[0])
+ 
+         
+         if not ior:
+@@ -301,7 +300,7 @@
+         try:
+             obj = any.from_any(properties[index].value, keep_structs=True)
+         except:
+-            traceback.print_exception(*sys.exc_info())
++            self._rtcout.RTC_ERROR(sys.exc_info()[0])
+     
+         if not obj:
+             self._rtcout.RTC_ERROR("prop[inport_ref] is not objref")
+@@ -344,7 +343,7 @@
+         try:
+             ior = any.from_any(properties[index].value, keep_structs=True)
+         except:
+-            traceback.print_exception(*sys.exc_info())
++            self._rtcout.RTC_ERROR(sys.exc_info()[0])
+ 
+         if not ior:
+             self._rtcout.RTC_ERROR("prop[inport_ior] is not string")
+@@ -386,7 +385,7 @@
+         try:
+             obj = any.from_any(properties[index].value, keep_structs=True)
+         except:
+-            traceback.print_exception(*sys.exc_info())
++            self._rtcout.RTC_ERROR(sys.exc_info()[0])
+     
+         if not obj:
+             return False
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPortCorbaCdrProvider.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPortCorbaCdrProvider.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPortCorbaCdrProvider.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPortCorbaCdrProvider.py	2009-08-18 16:17:52.000000000 +0900
+@@ -15,6 +15,7 @@
+ #         Advanced Industrial Science and Technology (AIST), Japan
+ #     All rights reserved.
+ 
++import sys
+ from omniORB import *
+ from omniORB import any
+ 
+@@ -139,34 +140,37 @@
+     #virtual ::OpenRTM::PortStatus put(const ::OpenRTM::CdrData& data)
+     #  throw (CORBA::SystemException);
+     def put(self, data):
+-        self._rtcout.RTC_PARANOID("put()")
++        try:
++            self._rtcout.RTC_PARANOID("put()")
+ 
+-        if not self._buffer:
+-            return OpenRTM.PORT_ERROR
++            if not self._buffer:
++                return OpenRTM.PORT_ERROR
+ 
+-        if self._buffer.full():
+-            self._rtcout.RTC_WARN("buffer full")
+-            return OpenRTM.BUFFER_FULL
++            if self._buffer.full():
++                self._rtcout.RTC_WARN("buffer full")
++                return OpenRTM.BUFFER_FULL
+ 
+-        self._rtcout.RTC_PARANOID("received data size: %d", len(data))
++            self._rtcout.RTC_PARANOID("received data size: %d", len(data))
+ 
+-        ret = self._buffer.write(data)
++            ret = self._buffer.write(data)
+ 
+-        if ret == OpenRTM_aist.BufferStatus.BUFFER_OK:
+-            return OpenRTM.PORT_OK
++            if ret == OpenRTM_aist.BufferStatus.BUFFER_OK:
++                return OpenRTM.PORT_OK
++            
++            elif ret == OpenRTM_aist.BufferStatus.BUFFER_ERROR:
++                return OpenRTM.PORT_ERROR
+ 
+-        elif ret == OpenRTM_aist.BufferStatus.BUFFER_ERROR:
+-            return OpenRTM.PORT_ERROR
++            elif ret == OpenRTM_aist.BufferStatus.BUFFER_FULL:
++                return OpenRTM.BUFFER_FULL
+ 
+-        elif ret == OpenRTM_aist.BufferStatus.BUFFER_FULL:
+-            return OpenRTM.BUFFER_FULL
+-
+-        elif ret == OpenRTM_aist.BufferStatus.BUFFER_EMPTY:
+-            return OpenRTM.BUFFER_EMPTY
+-
+-        elif ret == OpenRTM_aist.BufferStatus.TIMEOUT:
+-            return OpenRTM.BUFFER_TIMEOUT
++            elif ret == OpenRTM_aist.BufferStatus.BUFFER_EMPTY:
++                return OpenRTM.BUFFER_EMPTY
+ 
++            elif ret == OpenRTM_aist.BufferStatus.TIMEOUT:
++                return OpenRTM.BUFFER_TIMEOUT
++        except:
++            self._rtcout.RTC_TRACE(sys.exc_info()[0])
++            return OpenRTM.UNKNOWN_ERROR
+         return OpenRTM.UNKNOWN_ERROR
+ 
+ 
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPortCorbaConsumer.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPortCorbaConsumer.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/InPortCorbaConsumer.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/InPortCorbaConsumer.py	1970-01-01 09:00:00.000000000 +0900
+@@ -1,367 +0,0 @@
+-#!/usr/bin/env python
+-# -*- coding: euc-jp -*-
+-
+-##
+-# @file  InPortCorbaConsumer.py
+-# @brief InPortCorbaConsumer class
+-# @date  $Date: 2007/09/20 $
+-# @author Noriaki Ando <n-ando@aist.go.jp> and Shinji Kurihara
+-#
+-# Copyright (C) 2006-2008
+-#     Noriaki Ando
+-#     Task-intelligence Research Group,
+-#     Intelligent Systems Research Institute,
+-#     National Institute of
+-#         Advanced Industrial Science and Technology (AIST), Japan
+-#     All rights reserved.
+-
+-
+-from omniORB import *
+-from omniORB import CORBA
+-from omniORB import any
+-import sys
+-import traceback
+-
+-import RTC, RTC__POA
+-import OpenRTM_aist
+-import OpenRTM, OpenRTM__POA
+-
+-
+-##
+-# @if jp
+-#
+-# @class InPortCorbaConsumer
+-#
+-# @brief InPortCorbaConsumer クラス
+-#
+-# 通信手段に CORBA を利用した入力ポートコンシューマの実装クラス。
+-#
+-# @param DataType 本ポートにて扱うデータ型
+-#
+-# @since 0.4.0
+-#
+-# @else
+-# @class InPortCorbaConsumer
+-# @brief InPortCorbaConsumer class
+-# @endif
+-class InPortCorbaConsumer(OpenRTM_aist.InPortConsumer,OpenRTM_aist.CorbaConsumer):
+-  """
+-  """
+-
+-
+-
+-  ##
+-  # @if jp
+-  # @brief コンストラクタ
+-  #
+-  # コンストラクタ
+-  #
+-  # @param self
+-  # @param buffer_ 当該コンシューマに割り当てるバッファオブジェクト
+-  # @param consumer Consumer オブジェクト(デフォルト値:None)
+-  #
+-  # @else
+-  # @brief Constructor
+-  # @endif
+-  def __init__(self, buffer_, consumer=None):
+-    self._rtcout = OpenRTM_aist.Manager.instance().getLogbuf("InPortCorbaConsumer")
+-
+-    if consumer:
+-      OpenRTM_aist.CorbaConsumer.__init__(self, consumer=consumer)
+-      self._buffer = consumer._buffer
+-      return
+-    
+-    OpenRTM_aist.CorbaConsumer.__init__(self)
+-    self._buffer = buffer_
+-
+-
+-  ##
+-  # @if jp
+-  # @brief 代入演算子
+-  #
+-  # 代入演算子
+-  #
+-  # @param self
+-  # @param consumer 代入元 InPortCorbaConsumer オブジェクト
+-  #
+-  # @return 代入結果
+-  #
+-  # @else
+-  #
+-  # @endif
+-  def equal_operator(self, consumer):
+-    if self == consumer:
+-      return self
+-
+-    self._buffer = consumer._buffer
+-
+-
+-  ##
+-  # @if jp
+-  # @brief バッファへのデータ書込
+-  #
+-  # バッファにデータを書き込む
+-  #
+-  # @param self
+-  # @param data 書込対象データ
+-  #
+-  # @else
+-  #
+-  # @endif
+-  def put(self, data):
+-    self._rtcout.RTC_PARANOID("put()")
+-    obj = self._ptr()._narrow(OpenRTM.InPortCdr)
+-    obj.put(data)
+-
+-
+-  ##
+-  # @if jp
+-  # @brief バッファからのデータ取出
+-  #
+-  # バッファからデータを取り出して送出する。
+-  #
+-  # @param self
+-  #
+-  # @else
+-  #
+-  # @endif
+-  def push(self):
+-    self._rtcout.RTC_PARANOID("push()")
+-    data = [None]
+-    self._buffer.read(data)
+-
+-    if not self._ptr():
+-      return
+-
+-    obj = self._ptr()._narrow(OpenRTM.InPortCdr)
+-
+-    # 本当はエラー処理をすべき
+-    if CORBA.is_nil(obj):
+-      return
+-    try:
+-      obj.put(data[0])
+-    except:
+-      self._rtcout.RTC_INFO("exception while invoking _ptr().put()")
+-      # オブジェクトが無効になったらdisconnectすべき
+-      traceback.print_exception(*sys.exec_info())
+-      return
+-
+-
+-  ##
+-  # @if jp
+-  # @brief コピーの生成
+-  #
+-  # 当該InPortCorbaConsumerオブジェクトの複製を生成する。
+-  #
+-  # @param self
+-  #
+-  # @return コピーされたInPortCorbaConsumerオブジェクト
+-  #
+-  # @else
+-  #
+-  # @endif
+-  def clone(self):
+-    self._rtcout.RTC_TRACE("clone()")
+-    return OpenRTM_aist.InPortCorbaConsumer(self, consumer=self)
+-
+-
+-  ##
+-  # @if jp
+-  # @brief データ送信通知への登録
+-  #
+-  # 指定されたプロパティに基づいて、データ送出通知の受け取りに登録する。
+-  #
+-  # @param self
+-  # @param properties 登録情報
+-  #
+-  # @return 登録処理結果(登録成功:true、登録失敗:false)
+-  #
+-  # @else
+-  #
+-  # @endif
+-  def subscribeInterface(self, properties):
+-    self._rtcout.RTC_TRACE("subscribeInterface()")
+-
+-    if self.subscribeFromIor(properties):
+-      return True
+-
+-    if self.subscribeFromRef(properties):
+-      return True
+-
+-    return False
+-
+-
+-  ##
+-  # @if jp
+-  # @brief データ送信通知からの登録解除(サブクラス実装用)
+-  #
+-  # データ送出通知の受け取りから登録を解除する。<BR>
+-  # ※サブクラスでの実装参照用
+-  #
+-  # @param self
+-  # @param properties 登録解除情報
+-  #
+-  # @else
+-  #
+-  # @endif
+-  def unsubscribeInterface(self, properties):
+-    self._rtcout.RTC_TRACE("unsubscribeInterface()")
+-
+-    if self.unsubscribeFromIor(properties):
+-      return
+-
+-    self.unsubscribeFromRef(properties)
+-
+-
+-
+-  ##
+-  # @if jp
+-  # @brief IOR文字列からオブジェクト参照を取得する
+-  #
+-  # @return true: 正常取得, false: 取得失敗
+-  #
+-  # @else
+-  # @brief Getting object reference fromn IOR string
+-  #
+-  # @return true: succeeded, false: failed
+-  #
+-  # @endif
+-  #
+-  # bool subscribeFromIor(const SDOPackage::NVList& properties)
+-  def subscribeFromIor(self, properties):
+-    self.RTC_TRACE("subscribeFromIor()")
+-    
+-    index = OpenRTM_aist.NVUtil.find_index(properties,
+-                                           "dataport.corba_any.inport_ior")
+-    if index < 0:
+-      self._rtcout.RTC_ERROR("inport_ior not found")
+-      return False
+-
+-    ior = any.from_any(properties[index].value, keep_structs=True)
+-    if not ior:
+-      self._rtcout.RTC_ERROR("inport_ior has no string")
+-      return False
+-
+-
+-    orb = OpenRTM_aist.Manager.instance().getORB()
+-    obj = orb.string_to_object(ior)
+-      
+-    if CORBA.is_nil(obj):
+-      self._rtcout.RTC_ERROR("invalid IOR string has been passed")
+-      return False
+-
+-    if not self.setObject(obj):
+-      self._rtcout.RTC_WARN("Setting object to consumer failed.")
+-      return False
+-
+-    return True
+-
+-
+-  ##
+-  # @if jp
+-  # @brief Anyから直接オブジェクト参照を取得する
+-  #
+-  # @return true: 正常取得, false: 取得失敗
+-  #
+-  # @else
+-  # @brief Getting object reference fromn Any directry
+-  #
+-  # @return true: succeeded, false: failed
+-  #
+-  # @endif
+-  #
+-  #bool subscribeFromRef(const SDOPackage::NVList& properties)
+-  def subscribeFromRef(self, properties):
+-    self._rtcout.RTC_TRACE("subscribeFromRef()")
+-    index = OpenRTM_aist.NVUtil.find_index(properties,
+-                                           "dataport.corba_any.inport_ref")
+-    if index < 0:
+-      self._rtcout.RTC_ERROR("inport_ref not found")
+-      return False
+-
+-
+-    obj = any.from_any(properties[index].value, keep_structs=True)
+-    if not obj:
+-      self._rtcout.RTC_ERROR("prop[inport_ref] is not objref")
+-      return True
+-
+-    if CORBA.is_nil(obj):
+-      self._rtcout.RTC_ERROR("prop[inport_ref] is not objref")
+-      return False
+-      
+-    if not self.setObject(obj):
+-      self._rtcout.RTC_ERROR("Setting object to consumer failed.")
+-      return False
+-
+-    return True
+-
+-
+-  ##
+-  # @if jp
+-  # @brief 接続解除(IOR版)
+-  #
+-  # @return true: 正常取得, false: 取得失敗
+-  #
+-  # @else
+-  # @brief ubsubscribing (IOR version)
+-  #
+-  # @return true: succeeded, false: failed
+-  #
+-  # @endif
+-  #
+-  # bool unsubscribeFromIor(const SDOPackage::NVList& properties)
+-  def unsubscribeFromIor(self, properties):
+-    self._rtcout.RTC_TRACE("unsubscribeFromIor()")
+-    index = OpenRTM_aist.NVUtil.find_index(properties,
+-                                           "dataport.corba_any.inport_ior")
+-    if index < 0:
+-      self._rtcout.RTC_ERROR("inport_ior not found")
+-      return False
+-
+-    ior = any.from_any(properties[index].value, keep_structs=True)
+-    if not ior:
+-      self._rtcout.RTC_ERROR("prop[inport_ior] is not string")
+-      return False
+-
+-
+-    orb = OpenRTM_aist.Manager.instance().getORB()
+-    var = orb.string_to_object(ior)
+-    
+-    if not self._ptr()._is_equivalent(var):
+-      self._rtcout.RTC_ERROR("connector property inconsistency")
+-      return False
+-
+-    self.releaseObject()
+-    return True
+-
+-
+-  ##
+-  # @if jp
+-  # @brief 接続解除(Object reference版)
+-  #
+-  # @return true: 正常取得, false: 取得失敗
+-  #
+-  # @else
+-  # @brief ubsubscribing (Object reference version)
+-  #
+-  # @return true: succeeded, false: failed
+-  #
+-  # @endif
+-  #
+-  # bool unsubscribeFromRef(const SDOPackage::NVList& properties)
+-  def unsubscribeFromRef(self, properties):
+-    self._rtcout.RTC_TRACE("unsubscribeFromRef()")
+-    index = OpenRTM_aist.NVUtil.find_index(properties,
+-                                           "dataport.corba_any.inport_ref")
+-    if index < 0:
+-      return False
+-
+-    obj = any.from_any(properties[index].value, keep_structs=True)
+-    if not obj:
+-      return False
+-
+-    if not self._ptr()._is_equivalent(obj):
+-      return False
+-
+-    self.releaseObject()
+-    return True
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/Manager.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/Manager.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/Manager.py	2009-08-11 09:34:18.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/Manager.py	2009-08-18 16:17:55.000000000 +0900
+@@ -17,8 +17,8 @@
+ import threading
+ import string
+ import signal, os
+-import sys
+ import traceback
++import sys
+ import time
+ from omniORB import CORBA, PortableServer
+ from types import IntType, ListType
+@@ -1221,7 +1221,8 @@
+             self._orb.perform_work()
+             pass
+     except:
+-      traceback.print_exception(*sys.exc_info())
++      #traceback.print_exception(*sys.exc_info())
++      self._rtcout.RTC_TRACE(sys.exc_info()[0])
+       pass
+ 
+     self._rtcout.RTC_DEBUG("No pending works of ORB. Shutting down POA and ORB.")
+@@ -1421,14 +1422,16 @@
+         p = OpenRTM_aist.Properties(key=comp.getInstanceName())
+         p.mergeProperties(comp.getProperties())
+       except:
+-        traceback.print_exception(*sys.exc_info())
++        #traceback.print_exception(*sys.exc_info())
++        self._rtcout.RTC_TRACE(sys.exc_info()[0])
+         pass
+ 
+     for ec in self._ecs:
+       try:
+         self._poa.deactivate_object(self._poa.servant_to_id(ec))
+       except:
+-        traceback.print_exception(*sys.exc_info())
++        #traceback.print_exception(*sys.exc_info())
++        self._rtcout.RTC_TRACE(sys.exc_info()[0])
+         pass
+ 
+ 
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/OutPortCorbaCdrConsumer.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/OutPortCorbaCdrConsumer.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/OutPortCorbaCdrConsumer.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/OutPortCorbaCdrConsumer.py	2009-08-18 16:17:52.000000000 +0900
+@@ -17,7 +17,6 @@
+ #     All rights reserved.
+ #
+ 
+-import traceback
+ import sys
+ from omniORB import any
+ import OpenRTM_aist
+@@ -70,6 +69,7 @@
+     #
+     def __init__(self):
+         OpenRTM_aist.CorbaConsumer.__init__(self)
++        self._rtcout = OpenRTM_aist.Manager.instance().getLogbuf("OutPortCorbaCdrConsumer")
+         self._buffer = None
+         pass
+ 
+@@ -174,6 +174,8 @@
+     #
+     # virtual ReturnCode get(cdrMemoryStream& data);
+     def get(self, data):
++        self._rtcout.RTC_PARANOID("get()")
++
+         try:
+             ret,cdr_data = self._ptr().get()
+             
+@@ -216,6 +218,7 @@
+     #
+     # virtual bool subscribeInterface(const SDOPackage::NVList& properties);
+     def subscribeInterface(self, properties):
++        self._rtcout.RTC_TRACE("subscribeInterface()")
+         index = OpenRTM_aist.NVUtil.find_index(properties,"dataport.corba_cdr.outport_ior")
+         
+         if index < 0:
+@@ -226,7 +229,8 @@
+             try:
+                 ior = any.from_any(properties[index].value, keep_structs=True)
+             except:
+-                traceback.print_exception(*sys.exc_info())
++                #traceback.print_exception(*sys.exc_info())
++                self._rtcout.RTC_ERROR(sys.exc_info()[0])
+             
+             orb = OpenRTM_aist.Manager.instance().getORB()
+             obj = orb.string_to_object(ior)
+@@ -255,6 +259,7 @@
+     #
+     # virtual void unsubscribeInterface(const SDOPackage::NVList& properties);
+     def unsubscribeInterface(self, properties):
++        self._rtcout.RTC_TRACE("unsubscribeInterface()")
+         index = OpenRTM_aist.NVUtil.find_index(properties,
+                                                "dataport.corba_cdr.outport_ref")
+         if index < 0:
+@@ -271,7 +276,8 @@
+                         self.releaseObject()
+ 
+             except:
+-                traceback.print_exception(*sys.exc_info())
++                #traceback.print_exception(*sys.exc_info())
++                self._rtcout.RTC_ERROR(sys.exc_info()[0])
+ 
+     
+ def OutPortCorbaCdrConsumerInit():
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/OutPortCorbaCdrProvider.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/OutPortCorbaCdrProvider.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/OutPortCorbaCdrProvider.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/OutPortCorbaCdrProvider.py	2009-08-18 16:17:55.000000000 +0900
+@@ -16,6 +16,7 @@
+ #     All rights reserved.
+ #
+ 
++import sys
+ from omniORB import *
+ from omniORB import any
+ 
+@@ -187,16 +188,20 @@
+         if not self._buffer:
+             return (OpenRTM.UNKNOWN_ERROR, None)
+ 
+-        if self._buffer.empty():
+-            return (OpenRTM.BUFFER_EMPTY, None)
++        try:
++            if self._buffer.empty():
++                return (OpenRTM.BUFFER_EMPTY, None)
++
++            cdr = [None]
++            ret = self._buffer.read(cdr)
++
++            if ret == 0:
++                return (OpenRTM.PORT_OK, cdr[0])
++        except:
++            self._rtcout.RTC_TRACE(sys.exc_info()[0])
++            return (OpenRTM.UNKNOWN_ERROR,[None])
+ 
+-        cdr = [None]
+-        ret = self._buffer.read(cdr)
+-
+-        if ret == 0:
+-            return (OpenRTM.PORT_OK, cdr[0])
+-
+-        return (ret, None)
++        return (ret, [None])
+     
+ 
+ 
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/OutPortProvider.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/OutPortProvider.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/OutPortProvider.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/OutPortProvider.py	2009-08-18 16:17:51.000000000 +0900
+@@ -80,6 +80,7 @@
+     self._interfaceType    = ""
+     self._dataflowType     = ""
+     self._subscriptionType = ""
++    self._rtcout = OpenRTM_aist.Manager.instance().getLogbuf("OutPortProvider")
+ 
+ 
+   ##
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/PeriodicTask.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/PeriodicTask.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/PeriodicTask.py	2009-08-06 20:24:21.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/PeriodicTask.py	2009-08-18 16:17:52.000000000 +0900
+@@ -145,7 +145,7 @@
+     guard = OpenRTM_aist.ScopedLock(self._alive.mutex)
+     self._alive.value = False
+ 
+-    self._suspend.cond.acquire(0)
++    self._suspend.cond.acquire()
+     self._suspend.suspend = False
+     self._suspend.cond.notify()
+     self._suspend.cond.release()
+@@ -167,7 +167,7 @@
+   #
+   # virtual int suspend(void);
+   def suspend(self):
+-    self._suspend.cond.acquire(0)
++    self._suspend.cond.acquire()
+     self._suspend.suspend = True
+     self._suspend.cond.release()
+     return 0
+@@ -190,7 +190,7 @@
+   def resume(self):
+     self._periodTime.reset()
+     self._execTime.reset()
+-    self._suspend.cond.acquire(0)
++    self._suspend.cond.acquire()
+     self._suspend.suspend = False
+     self._suspend.cond.notify()
+     self._suspend.cond.release()
+@@ -212,7 +212,7 @@
+   #
+   # virtual void signal();
+   def signal(self):
+-    self._suspend.cond.acquire(0)
++    self._suspend.cond.acquire()
+     self._suspend.cond.notify()
+     self._suspend.cond.release()
+     return
+@@ -355,7 +355,7 @@
+         self._periodTime.tack()
+         
+       # wait if suspended
+-      self._suspend.cond.acquire(0)
++      self._suspend.cond.acquire()
+       if self._suspend.suspend:
+         self._suspend.cond.wait()
+         # break if finalized
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/RTObject.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/RTObject.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/RTObject.py	2009-08-06 20:44:16.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/RTObject.py	2009-08-18 16:17:52.000000000 +0900
+@@ -20,7 +20,6 @@
+ from omniORB import CORBA
+ import string
+ import sys
+-import traceback
+ 
+ import OpenRTM, OpenRTM__POA
+ import RTC,RTC__POA
+@@ -895,7 +894,9 @@
+       #               self._profile.properties)
+     
+     except:
+-      traceback.print_exception(*sys.exc_info())
++      #traceback.print_exception(*sys.exc_info())
++      self._rtcout.RTC_ERROR(sys.exc_info()[0])
++
+     assert(False)
+     return None
+ 
+@@ -926,7 +927,8 @@
+     try:
+       return self._portAdmin.getPortServiceList()
+     except:
+-      traceback.print_exception(*sys.exc_info())
++      #traceback.print_exception(*sys.exc_info())
++      self._rtcout.RTC_ERROR(sys.exc_info()[0])
+ 
+     assert(False)
+     return []
+@@ -2751,7 +2753,8 @@
+       self._poa.deactivate_object(self._poa.servant_to_id(self._SdoConfigImpl))
+       self._poa.deactivate_object(self._poa.servant_to_id(self))
+     except:
+-      traceback.print_exception(*sys.exc_info())
++      #traceback.print_exception(*sys.exc_info())
++      self._rtcout.RTC_ERROR(sys.exc_info()[0])
+ 
+     if self._manager:
+       self._manager.cleanupComponent(self)
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/RingBuffer.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/RingBuffer.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/RingBuffer.py	2009-08-06 20:24:22.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/RingBuffer.py	2009-08-18 16:17:52.000000000 +0900
+@@ -336,49 +336,54 @@
+   # ReturnCode write(const DataType& value,
+   #                  long int sec = -1, long int nsec = 0)
+   def write(self, value, sec = -1, nsec = 0):
+-    self._full_cond.acquire(0)
+-    if self.full():
+-      timedwrite = self._timedwrite
+-      overwrite  = self._overwrite
+-
+-      if not (sec < 0): # if second arg is set -> block mode
+-        timedwrite = True
+-        overwrite  = False
+-
+-      if overwrite and not timedwrite:       # "overwrite" mode
+-        self.advanceRptr()
+-
+-      elif not overwrite and not timedwrite: # "do_notiong" mode
+-        self._full_cond.release()
+-        return OpenRTM_aist.BufferStatus.BUFFER_FULL
+-
+-      elif not overwrite and timedwrite:     # "block" mode
+-
+-        if sec < 0:
+-          sec = self._wtimeout.sec()
+-          nsec = self._wtimeout.usec() * 1000
++    try:
++      self._full_cond.acquire()
++      if self.full():
++        timedwrite = self._timedwrite
++        overwrite  = self._overwrite
++
++        if not (sec < 0): # if second arg is set -> block mode
++          timedwrite = True
++          overwrite  = False
+ 
+-        # true: signaled, false: timeout
+-        if not self._full_cond.wait(sec + (nsec/1000000000.0)):
++        if overwrite and not timedwrite:       # "overwrite" mode
++          self.advanceRptr()
++
++        elif not overwrite and not timedwrite: # "do_notiong" mode
+           self._full_cond.release()
+-          return OpenRTM_aist.BufferStatus.TIMEOUT
++          return OpenRTM_aist.BufferStatus.BUFFER_FULL
+ 
+-      else: # unknown condition
+-        self._full_cond.release()
+-        return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET
++        elif not overwrite and timedwrite:     # "block" mode
++
++          if sec < 0:
++            sec = self._wtimeout.sec()
++            nsec = self._wtimeout.usec() * 1000
++
++          # true: signaled, false: timeout
++          if not self._full_cond.wait(sec + (nsec/1000000000.0)):
++            self._full_cond.release()
++            return OpenRTM_aist.BufferStatus.TIMEOUT
++
++        else: # unknown condition
++          self._full_cond.release()
++          return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET
+       
+-    empty = self.empty()
++      empty = self.empty()
+       
+-    self.put(value)
++      self.put(value)
+       
+-    if empty:
+-      self._empty_cond.acquire(0)
+-      self._empty_cond.notify()
+-      self._empty_cond.release()
++      if empty:
++        self._empty_cond.acquire()
++        self._empty_cond.notify()
++        self._empty_cond.release()
+ 
+-    self.advanceWptr(1)
+-    self._full_cond.release()
+-    return OpenRTM_aist.BufferStatus.BUFFER_OK
++      self.advanceWptr(1)
++      self._full_cond.release()
++      
++      return OpenRTM_aist.BufferStatus.BUFFER_OK
++    except:
++      return OpenRTM_aist.BufferStatus.BUFFER_OK
++      
+ 
+     
+   ##
+@@ -575,7 +580,7 @@
+   # ReturnCode read(DataType& value,
+   #                 long int sec = -1, long int nsec = 0)
+   def read(self, value, sec = -1, nsec = 0):
+-    self._empty_cond.acquire(0)
++    self._empty_cond.acquire()
+       
+     if self.empty():
+       timedread = self._timedread
+@@ -616,7 +621,7 @@
+     self.advanceRptr()
+ 
+     if full_:
+-      self._full_cond.acquire(0)
++      self._full_cond.acquire()
+       self._full_cond.notify()
+       self._full_cond.release()
+ 
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/__init__.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/__init__.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/__init__.py	2009-08-07 14:17:51.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/__init__.py	2009-08-18 16:17:52.000000000 +0900
+@@ -30,7 +30,7 @@
+ from DataPortStatus import *
+ from NumberingPolicy import *
+ from Listener import *
+-from Signal import *
++#from Signal import *
+ from Typename import *
+ from Guard import *
+ from PeriodicTask import *
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/examples/NXTRTC/NXTBrick.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/examples/NXTRTC/NXTBrick.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/examples/NXTRTC/NXTBrick.py	2009-08-06 09:48:13.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/examples/NXTRTC/NXTBrick.py	2009-08-18 16:17:54.000000000 +0900
+@@ -4,6 +4,7 @@
+ import nxt.locator
+ from nxt.sensor import *
+ from nxt.motor import *
++import time
+ 
+ class NXTBrick:
+     def __init__(self, bsock=None):
+@@ -61,7 +62,22 @@
+         """
+         state = []
+         for m in self.motors:
+-            state.append(m.get_output_state())
++            stat = None
++            for i in range(3):
++                try:
++                    stat = m.get_output_state()
++                    break
++                except:
++                    time.sleep(0.01)
++                    self.getMotors()
++                    continue
++
++            if stat == None:
++                import sys
++                print "Unknown motor encoder error"
++                print sys.exc_info()[1]
++            state.append(stat)
++
+         return state
+ 
+     def getSensors(self):
+@@ -70,7 +86,21 @@
+         """
+         state = []
+         for s in self.sensors:
+-            state.append(s.get_sample())
++            stat = None
++            for i in range(3):
++                try:
++                    stat = s.get_sample()
++                    break
++                except:
++                    time.sleep(0.01)
++                    self.getSensors()
++                    continue
++            if stat == None:
++                import sys
++                print "Unknown sensor error"
++                print sys.exc_info()[1]
++            state.append(stat)
++
+         return state
+ 
+ 
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/examples/NXTRTC/NXTRTC.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/examples/NXTRTC/NXTRTC.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/examples/NXTRTC/NXTRTC.py	2009-08-06 09:48:13.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/examples/NXTRTC/NXTRTC.py	2009-08-18 16:17:54.000000000 +0900
+@@ -87,31 +87,38 @@
+ 		return RTC.RTC_OK
+ 
+ 	def onExecute(self, ec_id):
+-		# check new data.
+-		if self._velIn.isNew():
+-			# read velocity data from inport.
+-			self._d_vel = self._velIn.read()
+-			vel_ = [0,0,0]
+-			vel_[self._mapping[self._map[0][0]]] = self._d_vel.data[0]
+-			vel_[self._mapping[self._map[0][1]]] = self._d_vel.data[1]
+-			# set velocity
+-			self._nxtbrick.setMotors(vel_)
+-
+-		# get sensor data.
+-		sensor_   = self._nxtbrick.getSensors()
+-		if sensor_:
+-			self._d_sens.data = sensor_
+-			# write sensor data to outport.
+-			self._sensOut.write()
+-
+-		# get position data.
+-		position_ = self._nxtbrick.getMotors()
+-		if position_:
+-			self._d_pos.data = \
+-			    [position_[self._mapping[self._map[0][0]]][9], \
+-				     position_[self._mapping[self._map[0][1]]][9]]
+-			# write position data to outport.
+-			self._posOut.write()
++		try:
++			# check new data.
++			if self._velIn.isNew():
++				# read velocity data from inport.
++				self._d_vel = self._velIn.read()
++				
++				vel_ = [0,0,0]
++				vel_[self._mapping[self._map[0][0]]] = self._d_vel.data[0]
++				vel_[self._mapping[self._map[0][1]]] = self._d_vel.data[1]
++				# set velocity
++#				print vel_
++				self._nxtbrick.setMotors(vel_)
++			else:
++				print "buffer empty"
++
++			# get sensor data.
++			sensor_   = self._nxtbrick.getSensors()
++			if sensor_:
++				self._d_sens.data = sensor_
++				# write sensor data to outport.
++				self._sensOut.write()
++
++			# get position data.
++			position_ = self._nxtbrick.getMotors()
++			if position_:
++				self._d_pos.data = \
++				    [position_[self._mapping[self._map[0][0]]][9], \
++					     position_[self._mapping[self._map[0][1]]][9]]
++				# write position data to outport.
++				self._posOut.write()
++		except:
++			print sys.exc_info()[1]
+ 
+ 		return RTC.RTC_OK
+ 
+diff -urN -x .svn -x test -x docs OpenRTM-aist-Python-1.0.0/OpenRTM_aist/rtm-naming/rtm-naming.py OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/rtm-naming/rtm-naming.py
+--- OpenRTM-aist-Python-1.0.0/OpenRTM_aist/rtm-naming/rtm-naming.py	2009-08-06 09:48:12.000000000 +0900
++++ OpenRTM-aist-Python-1.0.0_patched/OpenRTM_aist/rtm-naming/rtm-naming.py	2009-08-18 16:17:55.000000000 +0900
+@@ -1,15 +1,12 @@
+ #!/usr/bin/env python
+ # -*- Python -*-
+-
+-orb="omniORB"
+-
+ #
+ #  @file rtm-naming.py
+ #  @brief OpenRTM-aist name server launcher
+ #  @date $Date: 2007/10/25 $
+ #  @author Noriaki Ando <n-ando@aist.go.jp> and Shinji Kurihara
+ # 
+-#  Copyright (C) 2003-2005
++#  Copyright (C) 2003-2009
+ #      Task-intelligence Research Group,
+ #      Intelligent Systems Research Institute,
+ #      National Institute of
+@@ -17,37 +14,102 @@
+ #      All rights reserved.
+ # 
+ 
++default_orb="omniORB"
++orb=default_orb
++default_port="2809"
++
++
+ import sys,os,platform
+ 
+-sysinfo = platform.uname()
+-hostname=sysinfo[1]
+-currdir=os.getcwd()
+-port=2809
+-pla=sys.platform
+-
+-if pla == "win32":
+-    rmcmd = "del /F "
+-else:
+-    rmcmd = "rm -f "
++
++def get_hostname():
++    sysinfo  = platform.uname()
++    hostname = sysinfo[1]
++    return str(hostname)
++
++
++def get_tempdir():
++    temp_dir = os.environ.get('TEMP', "")
++    if temp_dir != "":
++        return temp_dir
++
++    temp_dir = os.environ.get('TMP', "")
++    if temp_dir != "":
++        return temp_dir
++
++    return os.getcwd()
++
++
++def find_nscmd(ns_cmd, ns_env = ""):
++    if sys.platform == "win32":
++        ns_path = os.path.join(sys.exec_prefix,ns_cmd)
++    else:
++        ns_path = os.path.join(sys.exec_prefix,'bin',ns_cmd)
++
++    if os.path.exists(ns_path):
++        return ns_path
++
++    if ns_env != "":
++        ns_path = os.environ.get(ns_env) + ns_cmd
++        if os.path.exists(ns_path):
++            return ns_path
++
++    sys_paths = os.environ.get('PATH').split(";")
++    for sys_path in sys_paths:
++        ns_path = sys_path + ns_cmd
++        if os.path.exists(ns_path):
++            return ns_path
++    return None
++
++
++def del_file(file_path):
++    if sys.platform == "win32":
++        delcmd = "del /F "
++    else:
++        delcmd = "rm -f "
++    delcmd += file_path
++    return os.system(delcmd)
++
+ 
+ def usage():
+     print "Usage: python rtm-naming.py port_number"
+ 
+ 
+-def omniname():
+-	global hostname, sysinfo, currdir, port, rmcmd
+-	log_fname = "omninames-"+str(hostname)+".log"
+-	if os.path.exists(log_fname):
+-		cmd = rmcmd+log_fname
+-		os.system(cmd)
+-	bak_fname = "omninames-"+str(hostname)+".bak"
+-	if os.path.exists(bak_fname):
+-		cmd = rmcmd+bak_fname
+-		os.system(cmd)
+-	print "Starting omniORB omniNames: ", hostname,":", port
+-	cmd = "omniNames -start "+str(port)+" -logdir \""+str(currdir)+"\" &"
+-	print cmd
+-	os.system(cmd)
++def omninames(port = "", endpoint = ""):
++    hostname = get_hostname()
++    log_path = get_tempdir()
++
++    log_fname = "omninames-" + hostname + ".log"
++    log_file = os.path.join(log_path, log_fname)
++
++    if os.path.exists(log_file):
++        del_file(log_file)
++
++    bak_fname = "omninames-" + hostname + ".bak"
++    bak_file = os.path.join(log_path, bak_fname)
++
++    if os.path.exists(bak_file):
++        del_file(bak_file)
++
++    if port == "":
++        port = default_port
++
++    print "Starting omniORB omniNames: ", hostname, ":", port
++
++    if sys.platform == "win32":
++        omniNames = find_nscmd("omniNames.exe", "OMNI_ROOT")
++    else:
++        omniNames = find_nscmd("omniNames")
++
++    if not omniNames:
++        print "Not found omniNames."
++        sys.exit()
++
++    cmd  = omniNames 
++    cmd += " -start " + str(port)
++    cmd += " -logdir \"" + str(log_path) + "\""
++    print cmd
++    os.system(cmd)
+ 
+ 
+ if __name__ == "__main__":
+@@ -61,4 +123,5 @@
+         usage()
+         sys.exit(1)
+         
+-    omniname()
++    if orb == "omniORB":
++        omninames()

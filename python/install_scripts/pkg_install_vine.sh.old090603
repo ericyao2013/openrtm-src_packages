@@ -1,0 +1,153 @@
+#!/bin/sh
+#
+# @file pkg_install_vine.sh
+# @brief OpenRTM-aist dependent packages installation script for Vine Linux
+# @author Noriaki Ando <n-ando@aist.go.jp>
+#         Shinji Kurihara
+#         Tetsuo Ando
+#
+# このシェルスクリプトは、aceおよびomniORBのパッケージをインストールし、
+# Vine Linuxの開発環境を構築します。
+#
+#---------------------------------------
+# Vineバージョン特定
+#---------------------------------------
+vinever=`cat /etc/vine-release | sed 's/.*\([0-9].[0-9]\).*/\1/'`
+
+#----------------------------------------
+# 言語環境をチェック
+#----------------------------------------
+check_lang()
+{
+lang="en"
+
+locale | grep ja_JP > /dev/null && lang="jp" || lang="en"
+
+if test "$lang" = "jp" ;then
+    msg1="ルートユーザーで実行してください。"
+    msg2="中断します。"
+    msg3="OpenRTM-aist のリポジトリが登録されていません。"
+    msg4_1="Source.list に OpenRTM-aist のリポジトリ: "
+    msg4="を追加します。よろしいですか？ (y/n) [y] "
+    msg5="インストール中です..."
+    msg6="完了"
+    msg7="すでにインストール済みです。"
+    msg8="アンインストール中です..."
+else
+    msg1="This script should be run as root user."
+    msg2="Abort."
+    msg3="No repository entry for OpenRTM-aist is configured in your system."
+    msg4_1="repository for OpenrRTM-aist: "
+    msg4="Do you want to add new repository entry for OpenrRTM-aist in source.list? (y/n) [y] "
+    msg5="Now installing: "
+    msg6="done."
+    msg7="is already installed."
+    msg8="Now uninstalling: "
+fi
+
+}
+
+#---------------------------------------
+# リポジトリサーバ
+#---------------------------------------
+openrtm_repo="rpm     http://www.openrtm.org/pub/Linux/Vine/apt $vinever/\$(ARCH) main"
+
+#---------------------------------------
+# パッケージリスト
+#---------------------------------------
+omni="omniORB omniORB-devel omniORB-servers omniORB-doc"
+ace="ace ace-devel"
+openrtm="OpenRTM-aist OpenRTM-aist-devel OpenRTM-aist-doc OpenRTM-aist-example PyYAML"
+packages="python gcc-c++ $omni $ace $openrtm"
+u_packages="$omni $ace $openrtm"
+
+
+
+#----------------------------------------
+# root かどうかをチェック
+#----------------------------------------
+check_root () {
+    if test ! `id -u` = 0 ; then
+	echo ""
+	echo $msg1
+	echo $msg2
+	echo ""
+	exit 1
+    fi
+}
+
+#---------------------------------------
+# ソースリスト更新関数の定義
+#---------------------------------------
+update_source_list () {
+    rtmsite=`grep openrtm /etc/apt/sources.list`
+    if test "x$rtmsite" = "x" ; then
+	echo $msg3
+	echo $msg4_1
+	echo "  " $openrtm_repo
+	read -p $msg4 kick_shell
+
+	if test "x$kick_shell" = "xn" ; then
+	    echo $msg2
+	    exit 0
+	else
+	    echo $openrtm_repo >> /etc/apt/sources.list
+	fi
+    fi
+}
+
+#----------------------------------------
+# パッケージをインストールする
+#----------------------------------------
+install_packages () {
+    for p in $*; do
+	ins=`rpm -qa $p`
+	if test "x$ins" = "x"; then
+	    echo $msg5 $p
+	    apt-get install $p
+	    echo $msg6
+	    echo ""
+	else
+	    echo $p $msg7
+	    echo ""
+	fi
+    done
+}
+
+#------------------------------------------------------------
+# リストを逆順にする
+#------------------------------------------------------------
+reverse () {
+    for i in $*; do
+	echo $i
+    done | sed '1!G;h;$!d'
+}
+
+#----------------------------------------
+# パッケージをアンインストールする
+#----------------------------------------
+uninstall_packages () {
+    for p in $*; do
+	echo $msg8 
+	echo $p
+	rpm -e $p
+	echo $msg6
+	echo ""
+    done
+}
+
+
+
+#---------------------------------------
+# メイン
+#--------------------------------------
+check_lang
+check_root
+if test "x$1" = "x-u" ; then
+    uninstall_packages `reverse $u_packages`
+else
+    update_source_list
+    apt-get update
+    install_packages $packages
+fi
+

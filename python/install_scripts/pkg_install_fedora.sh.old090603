@@ -1,0 +1,157 @@
+#!/bin/sh
+#
+# @file pkg_install_fedora.sh
+# @brief OpenRTM-aist dependent packages install script for Fedora
+# @author Noriaki Ando <n-ando@aist.go.jp>
+#         Shinji Kurihara
+#         Tetsuo Ando
+#
+# このシェルスクリプトは、aceおよびomniORBのパッケージをインストールし、
+# fedoraの開発環境を構築します。
+#
+# $Id$
+#
+
+#---------------------------------------
+# パッケージリスト
+#---------------------------------------
+omni="omniORB omniORB-devel omniORB-doc omniORB-servers omniORB-utils omniORB-bootscripts"
+ace="ace ace-devel"
+openrtm="OpenRTM-aist OpenRTM-aist-devel OpenRTM-aist-doc OpenRTM-aist-example PyYAML"
+packages="python gcc-c++ $omni $ace $openrtm"
+u_packages="$omni $ace $openrtm"
+
+#----------------------------------------
+# 言語環境をチェック
+#----------------------------------------
+check_lang()
+{
+lang="en"
+
+locale | grep ja_JP > /dev/null && lang="jp" || lang="en"
+
+if test "$lang" = "jp" ;then
+    msg1="OpenRTM-aist のリポジトリが登録されていません\nOpenRTM-aist のリポジトリ:\n  http://www.openrtm.org/pub/Linux/Fedora/"
+    msg2="を追加します。よろしいですか？ (y/n) [y] "
+    msg3="中断します。"
+    msg4="ルートユーザーで実行してください。"
+    msg5="インストール中です..."
+    msg6="完了"
+    msg7=" はインストール済みです。"
+
+else
+    msg1="No repository entry for OpenRTM-aist is configured in your system."
+    msg2="Do you want to add the repository entry for OpenrRTM-aist? (y/n) [y] "
+    msg3="Abrot."
+    msg4="This script should be run as root user."
+    msg5="Now installing: "
+    msg6="done."
+    msg7="is already installed."
+fi
+
+}
+
+#----------------------------------------
+# root かどうかをチェック
+#----------------------------------------
+check_root () {
+    if test ! `id -u` = 0 ; then
+	echo ""
+	echo $msg4
+	echo $msg3
+	echo ""
+	exit 1
+    fi
+}
+
+#---------------------------------------
+# インストール済パッケージリスト
+#---------------------------------------
+rpm_qa="/tmp/yum_list.txt"
+get_pkg_list () {
+    rpm -qa > $rpm_qa
+}
+clean_pkg_list () {
+    rm -f $rpm_qa
+}
+
+#---------------------------------------
+# リポジトリサイト設定ファイルを生成
+#---------------------------------------
+openrtm_repo () {
+cat <<EOF
+[openrtm]
+name=Fedora \$releasever - \$basearch
+failovermethod=priority
+baseurl=http://www.openrtm.org/pub/Linux/Fedora/releases/\$releasever/Fedora/\$basearch/os/Packages
+enabled=1
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora file:///etc/pki/rpm-gpg/RPM-GPG-KEY
+EOF
+} 
+create_repo() {
+    repo="/etc/yum.repos.d/openrtm.repo"
+    if test ! -f $repo ; then
+	echo -e $msg1
+	read -p "$msg2" kick_shell
+
+	if test "x$kick_shell" = "xn" ; then
+	    echo $msg3
+	    exit 0
+	else
+	    openrtm_repo > /etc/yum.repos.d/openrtm.repo
+#	    openrtm_repo > /tmp/openrtm.repo
+	fi
+    fi
+}
+
+#----------------------------------------
+# パッケージインストール関数
+#----------------------------------------
+install_packages () {
+    for p in $*; do
+	ins=`rpm -qa $p`
+	if test "x$ins" = "x"; then
+	    echo $msg5 $p
+	    yum install $p
+	    echo $msg6
+	    echo ""
+	else
+	    echo $p $msg7
+	    echo ""
+	fi
+    done
+}
+
+#------------------------------------------------------------
+# リストを逆順にする
+#------------------------------------------------------------
+reverse () {
+    for i in $*; do
+	echo $i
+    done | sed '1!G;h;$!d'
+}
+
+#----------------------------------------
+# パッケージをアンインストールする
+#----------------------------------------
+uninstall_packages () {
+    for p in $*; do
+	echo $msg5 " " $p
+	yum erase $p
+	ech $msg6
+	echo ""
+    done
+}
+
+#---------------------------------------
+# メイン
+#---------------------------------------
+check_lang
+check_root
+if test "x$1" = "x-u" ; then
+    uninstall_packages `reverse $u_packages`
+else
+    create_repo
+    install_packages $packages
+fi
